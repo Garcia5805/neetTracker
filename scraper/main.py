@@ -13,14 +13,25 @@ def main():
 
         start = time.time()
         while time.time() - start < 10:     
-            page.wait_for_timeout(1000)  
+            page.wait_for_timeout(2000)  
             h1 = page.locator("h1.problem-title")
-            text = h1.inner_text()
+            name = h1.inner_text()
 
             diff_loc = page.locator('[class^="difficulty-pill"]')
             diff_text = diff_loc.inner_text()
 
-            print(text + " " + diff_text)
+            top_loc = page.locator(".hint-accordion", has_text="Topics")
+            top_loc.click()
+            top_loc = top_loc.locator('[class^="company-tags-container"]')
+            top_text = top_loc.inner_text()
+
+            page_url = page.url
+
+            acc_loc = page.locator(".acceptance-value")
+            acc_rate = acc_loc.inner_text()
+
+            
+            print(name + " " + diff_text + " " + top_text + " " + page_url + " " + acc_rate)
 
             locator = page.get_by_test_id("Next Question")
             locator.hover()
