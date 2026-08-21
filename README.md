@@ -1,12 +1,5 @@
 # NeetCode Solutions — @Garcia5805
 
-<<<<<<< HEAD
-> Synced automatically from [NeetCode.io](https://neetcode.io) · Repository: `neetcode-submissions`
-=======
-> Synced automatically from [NeetCode.io](https://neetcode.io) · Repository: `neetTracker`
->>>>>>> neetTracker/main
-
----
 
 ## What is this?
 
