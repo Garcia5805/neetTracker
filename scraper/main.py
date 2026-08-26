@@ -40,11 +40,8 @@ def main():
 
                 page_url = page.url
 
-                acc_loc = page.locator(".acceptance-value")
-                acc_rate = acc_loc.inner_text()
-
                     
-                print(name + " " + diff_text + " " + top_text + " " + page_url + " " + acc_rate)
+                print(name + " " + diff_text + " " + top_text + " " + page_url)
 
                 locator = page.get_by_test_id("Next Question")
                 locator.hover()
