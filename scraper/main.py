@@ -1,19 +1,30 @@
 from playwright.sync_api import sync_playwright
 import time
+from database.db import get_connection
+from database.queries import get_last_url
+from database.queries import problem_exists
+
+
+
 
 def main():
-    with sync_playwright() as p:
 
+    conn = get_connection()
+    cur = conn.cursor()
+
+    with sync_playwright() as p:
         browser = p.firefox.launch(headless=False)
         page = browser.new_page()
-        page.goto("https://neetcode.io/problems/concatenation-of-array/question?list=allNC")
+
+            
+        page.goto(get_last_url())
         
         p.selectors.set_test_id_attribute("data-tooltip")
 
 
         start = time.time()
-        while time.time() - start < 20:   
-
+        while time.time() - start < 30:   
+            
             page.wait_for_timeout(1500)
             pro = page.get_by_role("button", name="Get Pro Access")
             pro_visible = pro.is_visible()
@@ -38,16 +49,21 @@ def main():
                 top_loc = top_loc.locator('[class^="company-tags-container"]')
                 top_text = top_loc.inner_text()
 
-                page_url = page.url
+                url = page.url
 
-                    
-                print(name + " " + diff_text + " " + top_text + " " + page_url)
+                if not problem_exists(cur,url):
+                    cur.execute("INSERT INTO problems (name, difficulty, url) VALUES (%s, %s, %s);", ( name, diff_text, url))
 
+                                    
                 locator = page.get_by_test_id("Next Question")
                 locator.hover()
                 locator.click()
+        conn.commit()
 
         browser.close()
+    
+    cur.close()
+    conn.close()
 
 
 if __name__ == '__main__':
