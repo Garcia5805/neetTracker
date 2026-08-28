@@ -49,8 +49,7 @@ def problem_exists(cur, url):
     """,(url,))
 
     return cur.fetchone()[0]
-    cur.close()
-    conn.close()
+
 
 def remove(id):
     conn = get_connection()
@@ -58,13 +57,52 @@ def remove(id):
 
     cur.execute("""
         DELETE FROM problems
-        WHERE id =%s 
+        WHERE id =%s;
     """,(id,))
 
     conn.commit()
     
     cur.close()
     conn.close()
+
+def topic_exists(cur, topic):
+
+    cur.execute("""
+        SELECT EXISTS(
+            SELECT 1 
+            FROM topics
+            WHERE topic =%s
+        );
+    """,(topic,))
+    return cur.fetchone()[0]
+
+def get_topic_id(cur, topic):
+    cur.execute("""
+        SELECT id 
+        FROM topics
+        WHERE topic = %s;
+    """, (topic,))
+    return cur.fetchone()[0]
+
+def get_problem_id(cur, url):
+    cur.execute("""
+        SELECT id 
+        FROM problems
+        WHERE url = %s;
+    """, (url))
+    return cur.fetchone()[0]
+
+def get_problem_topics():
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        
+    """)
+
+    cur.close()
+    conn.close()
+
 
 
 if __name__ == "__main__":
