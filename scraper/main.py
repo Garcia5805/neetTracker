@@ -19,14 +19,15 @@ def main():
         page = browser.new_page()
 
             
-        page.goto(get_last_url)
+        page.goto(get_last_url(cur))
         
         p.selectors.set_test_id_attribute("data-tooltip")
 
 
         start = time.time()
         while time.time() - start < 10:   
-            
+
+            print("wait")
             page.wait_for_timeout(1500)
             pro = page.get_by_role("button", name="Get Pro Access")
             pro_visible = pro.is_visible()
@@ -48,18 +49,17 @@ def main():
 
                 top_loc = page.locator(".hint-accordion", has_text="Topics")
                 top_loc.click()
+
                 top_loc = top_loc.locator('[class^="company-tags-container"]')
-                top_text = top_loc.inner_text()
-
-                top_list = top_text.split(" ")
-
-
+                top_list = top_loc.locator("a.company-tag-reveal-btn").all_inner_texts()
 
                 url = page.url
 
-                
-
                 if problem_exists(cur, url):
+                    locator = page.get_by_test_id("Next Question")
+                    locator.hover()
+                    locator.click()
+                    print("2")
                     continue
 
                 cur.execute("""
@@ -71,6 +71,7 @@ def main():
 
                 for topic in top_list: 
                     if not topic_exists(cur, topic):
+                        print(topic)
                         cur.execute("""
                             INSERT INTO topics (topic)
                             VALUES (%s);
@@ -87,7 +88,7 @@ def main():
                 
 
 
-
+                print("end")
                 locator = page.get_by_test_id("Next Question")
                 locator.hover()
                 locator.click()

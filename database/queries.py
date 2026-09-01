@@ -21,10 +21,7 @@ def main():
     cur.close()
     conn.close()
 
-def get_last_url():
-    conn = get_connection()
-    cur = conn.cursor()
-
+def get_last_url(cur):
     cur.execute("""
         SELECT url
         FROM problems
@@ -34,8 +31,6 @@ def get_last_url():
 
     last_url = cur.fetchone()[0]
 
-    cur.close()
-    conn.close()
     return last_url
 
 def problem_exists(cur, url):
