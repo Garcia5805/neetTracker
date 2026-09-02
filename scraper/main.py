@@ -6,9 +6,6 @@ from database.queries import problem_exists
 from database.queries import topic_exists
 from database.queries import get_topic_id
 
-
-
-
 def main():
 
     conn = get_connection()
@@ -17,7 +14,6 @@ def main():
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=False)
         page = browser.new_page()
-
             
         page.goto(get_last_url(cur))
         
@@ -25,16 +21,25 @@ def main():
 
 
         start = time.time()
-        while time.time() - start < 10:   
+        while time.time() - start < 30:   
 
-            print("wait")
             page.wait_for_timeout(1500)
             pro = page.get_by_role("button", name="Get Pro Access")
             pro_visible = pro.is_visible()
 
             if(pro_visible):
-                print("Skip")
                 locator = page.get_by_test_id("Next Question")
+
+                url = page.url
+                split_url = url.split('/')
+                problem = split_url[4].replace("-"," ").title()
+
+                cur.execute("""
+                    INSERT INTO problems (name, difficulty, url) 
+                    VALUES (%s, %s, %s)
+                    RETURNING id;
+                """,(problem, None, url))  
+
                 locator.hover()
                 page.wait_for_timeout(500)
                 locator.click()
@@ -59,7 +64,6 @@ def main():
                     locator = page.get_by_test_id("Next Question")
                     locator.hover()
                     locator.click()
-                    print("2")
                     continue
 
                 cur.execute("""
@@ -71,7 +75,6 @@ def main():
 
                 for topic in top_list: 
                     if not topic_exists(cur, topic):
-                        print(topic)
                         cur.execute("""
                             INSERT INTO topics (topic)
                             VALUES (%s);
@@ -88,7 +91,6 @@ def main():
                 
 
 
-                print("end")
                 locator = page.get_by_test_id("Next Question")
                 locator.hover()
                 locator.click()
