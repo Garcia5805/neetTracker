@@ -19,31 +19,44 @@ def main():
         
         p.selectors.set_test_id_attribute("data-tooltip")
 
+        last_save = time.time()
+        problems_since_save = 0
 
-        start = time.time()
-        while time.time() - start < 30:   
+        while True:  
 
             page.wait_for_timeout(1500)
             pro = page.get_by_role("button", name="Get Pro Access")
             pro_visible = pro.is_visible()
 
-            if(pro_visible):
+            if pro_visible:
                 locator = page.get_by_test_id("Next Question")
 
                 url = page.url
                 split_url = url.split('/')
-                problem = split_url[4].replace("-"," ").title()
+                problem = split_url[4].replace("-", " ").title()
 
                 cur.execute("""
                     INSERT INTO problems (name, difficulty, url) 
                     VALUES (%s, %s, %s)
                     RETURNING id;
-                """,(problem, None, url))  
+                """, (problem, None, url))
+
+                problems_since_save += 1
+
+                if (time.time() - last_save >= 60
+                        or problems_since_save >= 10):
+
+                    conn.commit()
+                    print(f"Saved progress ({problems_since_save} problems).")
+
+                    last_save = time.time()
+                    problems_since_save = 0
 
                 locator.hover()
                 page.wait_for_timeout(500)
                 locator.click()
                 continue
+
             else:
 
                 h1 = page.locator("h1.problem-title")
@@ -56,7 +69,9 @@ def main():
                 top_loc.click()
 
                 top_loc = top_loc.locator('[class^="company-tags-container"]')
-                top_list = top_loc.locator("a.company-tag-reveal-btn").all_inner_texts()
+                top_list = top_loc.locator(
+                    "a.company-tag-reveal-btn"
+                ).all_inner_texts()
 
                 url = page.url
 
@@ -70,7 +85,8 @@ def main():
                     INSERT INTO problems (name, difficulty, url) 
                     VALUES (%s, %s, %s)
                     RETURNING id;
-                """,(name, diff_text, url))  
+                """, (name, diff_text, url))
+
                 problem_id = cur.fetchone()[0]
 
                 for topic in top_list: 
@@ -86,16 +102,25 @@ def main():
                         INSERT INTO problem_topics (problem_id, topic_id)
                         VALUES (%s, %s);
                     """, (problem_id, topic_id))
-                    
 
-                
+                # Count this problem
+                problems_since_save += 1
 
+                # Save every 60 seconds OR every 20 problems
+                if (time.time() - last_save >= 60
+                        or problems_since_save >= 10):
+
+                    conn.commit()
+                    print(f"Saved progress ({problems_since_save} problems).")
+
+                    last_save = time.time()
+                    problems_since_save = 0
 
                 locator = page.get_by_test_id("Next Question")
                 locator.hover()
                 locator.click()
-        conn.commit()
 
+        conn.commit()
         browser.close()
     
     cur.close()
