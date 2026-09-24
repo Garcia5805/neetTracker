@@ -1,7 +1,7 @@
 import subprocess
 import os
+from datetime import datetime, timedelta
 from database.db import get_connection
-
 
 from dotenv import load_dotenv
 
@@ -27,6 +27,8 @@ def main():
                 check=True
             )
             commit_date = result.stdout.strip() # str
+            date = datetime.strptime(commit_date).date() #datetime.date
+
             cur.execute(""" 
                 SELECT id
                 FROM problems
@@ -37,13 +39,22 @@ def main():
             language = problem.split(".")[1] # language str
             problem_id = result[0] #foreign key int
 
-            #cur.execute("""
-            #    INSERT INTO submission(problem_id, submitted_at, language, next_review, review_count)
-            #    VALUES (%s, %s, %s, %s, %s)
-            #""",(problem_id, commit_date, language, next_review))
+            cur.execute("""
+                INSERT INTO submissions(problem_id, submitted_at, language)
+                VALUES (%s, %s, %s)
+            """,(problem_id, date, language))
 
+            added = 1
+            next_review = date + timedelta(days=added)
+            review_stage = 0
+            last_language = None
 
-            print(commit_date)
+            cur.execute("""
+                INSERT INTO problem_progress(problem_id, first_solved_at, last_reviewed_at, next_review_at, review_stage, last_language)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """,(problem_id, date,  ))
+
+            print(date)
 
             
 
