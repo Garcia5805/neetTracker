@@ -3,6 +3,8 @@ import os
 from datetime import datetime, timedelta
 from database.db import get_connection
 
+from database.queries import get_problem_id, has_progress, create_progress, update_progress, get_review_stage, add_submission
+
 from dotenv import load_dotenv
 
 def main():
@@ -27,36 +29,56 @@ def main():
                 check=True
             )
             commit_date = result.stdout.strip() # str
-            date = datetime.strptime(commit_date).date() #datetime.date
 
-            cur.execute(""" 
-                SELECT id
-                FROM problems
-                WHERE url LIKE %s
-            """, (f"%/{filename}/%",))
-            result = cur.fetchone()
+            date = datetime.strptime(commit_date, "%Y-%m-%d").date()
+            
+            problem_id = get_problem_id(cur,filename)
 
             language = problem.split(".")[1] # language str
-            problem_id = result[0] #foreign key int
 
-            cur.execute("""
-                INSERT INTO submissions(problem_id, submitted_at, language)
-                VALUES (%s, %s, %s)
-            """,(problem_id, date, language))
-
-            added = 1
-            next_review = date + timedelta(days=added)
-            review_stage = 0
-            last_language = None
-
-            cur.execute("""
-                INSERT INTO problem_progress(problem_id, first_solved_at, last_reviewed_at, next_review_at, review_stage, last_language)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """,(problem_id, date,  ))
-
-            print(date)
+            add_submission(cur, problem_id, date, language)
 
             
+            last_language = None
+
+            # If problem_progress doesn't already have a row for problem_id make it with:
+            #               problem_id
+            #               first_solved_at
+            #               next_review
+            #               review_stage
+            # Leave last_reviewed, and last_language as none/null
+
+            review_interval = [1, 3, 7, 14, 30, 60, 120]
+            if not has_progress(cur, problem_id):
+                review_stage = 0
+                next_review = date + timedelta(days=review_interval[review_stage])
+
+            # If it does have one, just update whatever is necessary so:
+            #               last_reviewed_at
+            #               next_review_at
+            #               review_stage
+                create_progress(cur, problem_id, date, next_review, review_stage)
+                print("worked")
+                
+            else:
+                review_stage = get_review_stage(cur, problem_id)
+                next_review = calc_next_review(date, review_stage, review_interval) # date it was solved + interval
+                update_progress(cur, problem_id, date, next_review, review_stage+1)
+                print("worked")
+
+
+    conn.commit()
+    cur.close()
+    conn.close()
+    print("done")
+            
+
+
+
+def calc_next_review(date, review_stage, review_interval, ):
+    index = min(review_stage // 3, len(review_interval) - 1)
+    next_review = date + timedelta(days=review_interval[index])
+    return next_review
 
 if __name__ == '__main__':
     main()
