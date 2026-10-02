@@ -1,239 +1,207 @@
-# neetTracker
+# NeetTracker
 
-**neetTracker** is a Python-based web scraper and PostgreSQL database project for collecting and organizing NeetCode problems.
+NeetTracker is a personal LeetCode/NeetCode tracking tool designed to help organize problem-solving history and recommend which problems should be reviewed next.
 
-The goal of the project is to build a foundation for tracking solved problems and eventually using that information to support **spaced repetition** and DSA review.
+Instead of using fixed spaced-repetition deadlines, NeetTracker uses a problem's solve history to determine review priority. Problems that have not been solved recently and have fewer previous submissions can be given higher priority for review.
 
 ## Features
 
-* Scrapes problem information from NeetCode
-* Collects:
+- Imports NeetCode submission history from Git commit data
+- Stores individual problem submissions
+- Tracks submission dates and programming languages
+- Stores problems and their associated topics
+- Uses PostgreSQL for relational data storage
+- Uses Supabase for remote database access
+- Preserves full submission history
+- Supports future priority-based problem recommendations
 
-  * Problem name
-  * Difficulty
-  * Problem URL
-  * Topics
-* Stores problems in PostgreSQL
-* Prevents duplicate problems from being inserted
-* Stores topics separately and connects them to problems through a many-to-many relationship
-* Designed to eventually track submissions and recommend problems for review
+## Review System
 
-## Tech Stack
+NeetTracker originally used fixed spaced-repetition intervals such as:
 
-* **Python** — Main programming language
-* **Playwright** — Web scraping/browser automation
-* **PostgreSQL** — Database
-* **psycopg** — Python/PostgreSQL connection
-* **Git/GitHub** — Version control
+```text
+1 → 3 → 7 → 14 → 30 → 60 → 120 days
+```
+
+However, coding problems require significantly more time than traditional flashcard reviews. Fixed review dates can therefore create an unrealistic backlog of overdue problems.
+
+The review system is being redesigned around **priority-based recommendations** instead.
+
+Rather than asking:
+
+> When is this problem due?
+
+NeetTracker aims to answer:
+
+> Which problem would be most valuable for me to review next?
+
+Problem priority can be determined using information such as:
+
+- Time since the problem was last solved
+- Number of previous solves
+- Problem difficulty
+- Topic
+- Future performance metrics
+
+An initial ranking formula may look similar to:
+
+```python
+priority = days_since_last_solve / solve_count
+```
+
+Problems with higher priority scores would be recommended first.
+
+The ranking algorithm will continue to evolve as more submission data is collected.
 
 ## Database Structure
 
-The database currently consists of three tables:
+### `problems`
+
+Stores information about each problem.
 
 ```text
-problems
----------
 id
 name
-difficulty
 url
+difficulty
+```
 
-topics
-------
+### `topics`
+
+Stores available problem topics.
+
+```text
 id
-topic
+name
+```
 
-problem_topics
---------------
+### `problem_topic`
+
+Creates the many-to-many relationship between problems and topics.
+
+```text
 problem_id
 topic_id
 ```
 
-### Relationships
+### `submissions`
 
-A problem can have multiple topics, and a topic can belong to multiple problems.
-
-```text
-problems
-   │
-   │
-   ▼
-problem_topics
-   ▲
-   │
-   │
-topics
-```
-
-`problem_topics` acts as the junction table between `problems` and `topics`.
-
-## Project Structure
+Stores the full history of problem submissions.
 
 ```text
-neetTracker/
-│
-├── database/
-│   ├── __init__.py
-│   ├── db.py
-│   └── queries.py
-│
-├── scraper/
-│   ├── __init__.py
-│   └── main.py
-│
-├── .env
-├── .gitignore
-├── requirements.txt
-└── README.md
+id
+problem_id
+submitted_at
+language
 ```
 
-> The exact structure may change as the project develops.
+The `submissions` table acts as the primary source of solve-history data.
 
-## Setup
+Statistics such as:
 
-### 1. Clone the repository
+- First solve date
+- Most recent solve date
+- Number of solves
+- Time since last solve
 
-```bash
-git clone <repository-url>
-cd neetTracker
-```
-
-### 2. Create a virtual environment
-
-```bash
-python3 -m venv .venv
-```
-
-Activate it:
-
-```bash
-source .venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-If Playwright has not been installed/configured yet:
-
-```bash
-playwright install
-```
-
-### 4. Configure PostgreSQL
-
-Create a PostgreSQL database named:
-
-```text
-neetTracker
-```
-
-The project uses PostgreSQL to store scraped problem and topic information.
-
-### 5. Configure environment variables
-
-Create a `.env` file containing your PostgreSQL connection information.
+can be calculated directly from submission history instead of being stored as fixed review state.
 
 Example:
 
-```env
-DB_NAME=neetTracker
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_HOST=localhost
-DB_PORT=5432
+```sql
+SELECT
+    problem_id,
+    MIN(submitted_at) AS first_solved_at,
+    MAX(submitted_at) AS last_solved_at,
+    COUNT(*) AS solve_count
+FROM submissions
+GROUP BY problem_id;
 ```
 
-**Do not commit ****`.env`**** to GitHub.**
+## Git History Import
 
-Make sure `.gitignore` contains:
+NeetTracker reads commit history from a NeetCode-generated Git repository to determine when individual submissions were made.
+
+Example:
+
+```bash
+git log origin/main -1 --format=%ad --date=short -- path/to/submission.java
+```
+
+The resulting commit date is stored alongside the corresponding problem submission in the database.
+
+## Tech Stack
+
+### Languages
+
+- Python
+- SQL
+
+### Database
+
+- PostgreSQL
+- Supabase
+
+### Tools
+
+- Git
+- GitHub
+- Playwright
+
+## Project Structure
+
+The project is organized around several main responsibilities:
 
 ```text
-.env
-.venv/
-__pycache__/
+NeetCode Repository
+        |
+        v
+Git Commit History
+        |
+        v
+Python Import Scripts
+        |
+        v
+PostgreSQL / Supabase
+        |
+        v
+Submission Statistics
+        |
+        v
+Recommendation Algorithm
 ```
 
-## Running the Scraper
+The database records what has happened, while the recommendation system determines what problems should be reviewed next.
 
-Activate the virtual environment:
+This separation allows the recommendation algorithm to change without requiring major changes to stored submission data.
 
-```bash
-source .venv/bin/activate
-```
+## Current Development
 
-Then run the scraper:
+Current work is focused on:
 
-```bash
-python scraper/main.py
-```
+- Simplifying the database around submission history
+- Removing the previous fixed review-scheduling system
+- Calculating review statistics from stored submissions
+- Building an initial problem-ranking algorithm
 
-The scraper will navigate through the problems, collect the relevant information, and insert it into PostgreSQL.
+## Planned Features
 
-Existing problems are checked before insertion to prevent duplicates.
+Future development may include:
 
-## Database Commands
+- Ranked review recommendations
+- Topic-based filtering
+- Difficulty-based filtering
+- Review history analytics
+- Problem-solving trends over time
+- Topic performance breakdowns
+- Weak-topic identification
+- Improved recommendation scoring
+- Additional performance metrics such as hints or failed attempts
 
-Connect to the database from Terminal:
+## Goal
 
-```bash
-/Library/PostgreSQL/18/bin/psql -U postgres -d neetTracker
-```
+The goal of NeetTracker is to make LeetCode review more practical.
 
-List tables:
+Rather than maintaining a strict schedule of problems that become "overdue," NeetTracker will prioritize problems based on their actual solve history and help answer a simpler question:
 
-```sql
-\dt
-```
-
-View problems:
-
-```sql
-SELECT * FROM problems;
-```
-
-View topics:
-
-```sql
-SELECT * FROM topics;
-```
-
-View problem-topic relationships:
-
-```sql
-SELECT * FROM problem_topics;
-```
-
-### Reset the Database
-
-To remove all data and reset the ID counters:
-
-```sql
-TRUNCATE TABLE problem_topics, problems, topics RESTART IDENTITY CASCADE;
-```
-
-## Current Goal
-
-The current version of neetTracker focuses on building a reliable database of NeetCode problems and their associated topics.
-
-Future versions will expand the project into a system for tracking solved problems and determining when previously solved problems should be reviewed.
-
-## Future Plans
-
-* [ ] Track when a problem was solved
-* [ ] Track multiple submissions/reviews
-* [ ] Implement spaced-repetition logic
-* [ ] Recommend problems that are due for review
-* [ ] Build a web interface
-* [ ] Add user statistics and progress tracking
-* [ ] Visualize DSA progress by topic and difficulty
-* [ ] Add authentication/user accounts
-* [ ] Deploy the application
-
-## Status
-
-🚧 **In development**
-
-The project is currently focused on the scraping and database foundation. More functionality will be added as development continues.
+**What should I practice next?**
